@@ -1,3 +1,4 @@
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from jose import jwt
@@ -37,17 +38,18 @@ def authenticate_user(mobile: str, otp: str):
     if not verify_otp(mobile, otp):
         raise HTTPException(status_code=400, detail="Invalid OTP")
 
-    # Save the user's mobile number to the database
     existing_user = db.users.find_one({"mobile": mobile})
     if not existing_user:
         result = db.users.insert_one({"mobile": mobile})
-        print("Inserted user with ID:", result.inserted_id)  # For debugging purposes
+        user_id = result.inserted_id  # Get the MongoDB ObjectId
+    else:
+        user_id = existing_user['_id']
 
-    # Generate a JWT token for the user
-    token = create_access_token(data={"mobile": mobile})
+    # Generate a JWT token for the user with user_id
+    token = create_access_token(data={"user_id": str(user_id), "mobile": mobile})
 
-    # Return the JWT token to the user
     return {"access_token": token, "token_type": "bearer"}
+
 
 def get_current_user(api_key: str = Depends(api_key_header)):
     if not api_key:
@@ -56,12 +58,34 @@ def get_current_user(api_key: str = Depends(api_key_header)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         mobile: str = payload.get("mobile")
+        user_id: str = payload.get("user_id")
         if mobile is None:
             raise HTTPException(status_code=400, detail="Invalid token")
-        return mobile
+        return user_id
     except jwt.JWTError:
         raise HTTPException(status_code=400, detail="Invalid token")
 
+
+# @router.get("/me")
+# def get_current_user_endpoint(user_id: str = Depends(get_current_user)):
+#     # Fetch user details from the database using the user_id extracted from the token
+#     print(user_id)
+#     user_details = db.users.find_one({"_id": user_id})
+#     if not user_details:
+#         raise HTTPException(status_code=404, detail="User not found")
+#     # Optionally, return any specific user details
+#     return {"user_id": user_id, "mobile": user_details["mobile"]}
+
 @router.get("/me")
-def get_current_user_endpoint(mobile: str = Depends(get_current_user)):
-    return {"mobile": mobile}
+def get_current_user_endpoint(user_id: str = Depends(get_current_user)):
+    # Convert user_id from string to ObjectId
+    object_id = ObjectId(user_id)
+    print(object_id)  # Debug print to confirm correct ObjectId conversion
+
+    # Fetch user details from the database using the ObjectId
+    user_details = db.users.find_one({"_id": object_id})
+    if not user_details:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Optionally, return any specific user details
+    return {"user_id": user_id, "mobile": user_details["mobile"]}

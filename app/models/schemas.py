@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from typing import Optional
 from bson import ObjectId
@@ -28,8 +28,22 @@ class EventSchema(BaseModel):
     eventDate: datetime
     isPrivate: Optional[bool] = True
 
+    class Config:
+        orm_mode = True
+
+class EventDetailSchema(EventSchema):
+    id: Optional[PyObjectId] = Field(alias='_id')
+    shagunId: Optional[str]
+    qrCode: Optional[str]
+
+    class Config:
+        orm_mode = True
+        json_encoders = {
+            ObjectId: lambda oid: str(oid)
+        }
+
 class CashEntrySchema(BaseModel):
-    eventId: str
+    eventId: PyObjectId
     senderName: str
     senderLocation: str
     amount: float
@@ -37,6 +51,9 @@ class CashEntrySchema(BaseModel):
 
     class Config:
         orm_mode = True
+        json_encoders = {
+            ObjectId: lambda oid: str(oid)
+        }
 
 class TransactionSchema(BaseModel):
     id: Optional[PyObjectId] = Field(alias='_id')
@@ -45,15 +62,15 @@ class TransactionSchema(BaseModel):
     eventId: PyObjectId
     amount: float
     transactionDate: datetime
-    paymentMethod: str  # e.g., "online", "cash"
-    status: str  # e.g., "pending", "completed", "failed"
-    paymentGateway: Optional[str] = None  # Only for online transactions
-    gatewayTransactionId: Optional[str] = None  # Unique ID from payment gateway
-    paymentStatus: Optional[str] = None  # e.g., "successful", "failed"
+    paymentMethod: str
+    status: str
+    paymentGateway: Optional[str]
+    gatewayTransactionId: Optional[str]
+    paymentStatus: Optional[str]
 
     class Config:
         arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+        json_encoders = {ObjectId: lambda oid: str(oid)}
         schema_extra = {
             "example": {
                 "senderId": "507f1f77bcf86cd799439011",
@@ -68,3 +85,4 @@ class TransactionSchema(BaseModel):
                 "paymentStatus": "successful"
             }
         }
+

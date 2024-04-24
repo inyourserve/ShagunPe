@@ -4,7 +4,6 @@ from app.api.routers import transactions
 
 app = FastAPI()
 
-app.include_router(users.router)
-app.include_router(events.router)
-app.include_router(transactions.router)
-
+app.include_router(users.router,tags=["Users"])
+app.include_router(events.router,tags=["Events"])
+app.include_router(transactions.router, tags=["Transactions"])
