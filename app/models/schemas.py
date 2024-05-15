@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
 from bson import ObjectId
@@ -30,17 +30,12 @@ class EventSchema(BaseModel):
 
     class Config:
         orm_mode = True
+        json_encoders = {ObjectId: lambda oid: str(oid)}
 
 class EventDetailSchema(EventSchema):
-    id: Optional[PyObjectId] = Field(alias='_id')
+    event_id: PyObjectId = Field(default=None, alias='_id')  # Use alias to map MongoDB '_id'
     shagunId: Optional[str]
     qrCode: Optional[str]
-
-    class Config:
-        orm_mode = True
-        json_encoders = {
-            ObjectId: lambda oid: str(oid)
-        }
 
 class CashEntrySchema(BaseModel):
     eventId: PyObjectId
@@ -51,9 +46,7 @@ class CashEntrySchema(BaseModel):
 
     class Config:
         orm_mode = True
-        json_encoders = {
-            ObjectId: lambda oid: str(oid)
-        }
+        json_encoders = {ObjectId: lambda oid: str(oid)}
 
 class TransactionSchema(BaseModel):
     id: Optional[PyObjectId] = Field(alias='_id')
@@ -68,21 +61,37 @@ class TransactionSchema(BaseModel):
     gatewayTransactionId: Optional[str]
     paymentStatus: Optional[str]
 
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: lambda oid: str(oid)}
-        schema_extra = {
-            "example": {
-                "senderId": "507f1f77bcf86cd799439011",
-                "receiverId": "507f1f77bcf86cd799439012",
-                "eventId": "507f1f77bcf86cd799439013",
-                "amount": 100.00,
-                "transactionDate": "2021-07-21T14:00:00",
-                "paymentMethod": "online",
-                "status": "pending",
-                "paymentGateway": "Stripe",
-                "gatewayTransactionId": "ch_1Isqxw2eZvKYlo2C1B576xdu",
-                "paymentStatus": "successful"
-            }
-        }
+class EntrySumSchema(BaseModel):
+    total_entries: int
+    total_amount: float
 
+# class AddressSchema(BaseModel):
+#     id: Optional[PyObjectId] = Field(alias='_id')
+#     userId: PyObjectId
+#     name: str
+#     location: str
+#     isDefault: bool = False
+#     isDeleted: bool = False
+
+class AddressSchema(BaseModel):
+    name: str
+    location: str
+    isDefault: bool = False
+    isSaved: bool = True  # Indicates if the user has chosen to save this address
+    isDeleted: bool = False  # Soft delete flag
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    updatedAt: Optional[datetime] = None
+
+    class Config:
+            orm_mode = True
+            json_encoders = {
+                ObjectId: lambda oid: str(oid),
+                datetime: lambda dt: dt.isoformat() if dt else None
+            }
+
+class GetAddressSchema(AddressSchema):
+    id: Optional[PyObjectId] = Field(alias='_id')
+
+    class Config:
+        orm_mode = True
+        json_encoders = {ObjectId: lambda oid: str(oid)}
